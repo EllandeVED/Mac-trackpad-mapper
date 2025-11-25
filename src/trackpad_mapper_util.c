@@ -61,9 +61,35 @@ MTPoint _map(double normx, double normy) {
 }
 
 void moveCursor(double x, double y) {
-    CGPoint point = {
-        .x = x < 0 ? 0 : x >= screenSize.width ? screenSize.width - 1 : x,
-        .y = y < 0 ? 0 : y >= screenSize.height ? screenSize.height - 1: y,
+    // Simple stabiliser: ignore very small moves and smooth bigger ones
+    static double lastX = -1.0;
+    static double lastY = -1.0;
+
+    // Minimum movement (in screen pixels) before we move the cursor (change in setting.def.h)
+    const double threshold = JITTER_THRESHOLD;
+    const double alpha = JITTER_ALPHA;
+
+    if (lastX >= 0.0 && lastY >= 0.0) {
+        double dx = x - lastX;
+        double dy = y - lastY;
+        double dist2 = dx * dx + dy * dy;
+
+        // If the movement is tiny, ignore it completely
+        if (dist2 < threshold * threshold) {
+            return;
+        }
+
+        // Low-pass filter: move part-way toward the new point
+        x = lastX + alpha * dx;
+        y = lastY + alpha * dy;
+    }
+
+    lastX = x;
+    lastY = y;
+
+    CGPoint point = (CGPoint){
+        .x = x < 0 ? 0 : x >= screenSize.width  ? screenSize.width  - 1 : x,
+        .y = y < 0 ? 0 : y >= screenSize.height ? screenSize.height - 1 : y,
     };
 
     if (settings.useArg && settings.emitMouseEvent ||
@@ -123,6 +149,16 @@ int trackpadCallback(
         gesturePhase = GESTURE_PHASE_NONE;
         oldFingerCount = nFingers;
         startTrackTimeStamp = 0;
+        return 0;
+    }
+    
+    // Making sure to ignore any frame with more than one finger
+    if (DISABLE_CURSOR_ON_MULTITOUCH && nFingers > 1) {
+        // reset tracking state so we do not accidentally treat a gesture as 1-finger move
+        gesturePhase = GESTURE_PHASE_NONE;
+        oldFingerCount = nFingers;
+        startTrackTimeStamp = 0;
+        oldPathIndex = -1;
         return 0;
     }
     

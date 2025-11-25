@@ -25,3 +25,12 @@ static inline MTPoint map(double normx, double normy) {
     point.y *= screenSize.height;
     return point;
 }
+
+
+// Jitter / smoothing settings for absolute cursor mode
+static const double JITTER_THRESHOLD = 6.0;  // in screen pixels (try 4–10)
+static const double JITTER_ALPHA     = 0.5;  // 0..1, smoothing factor
+
+
+// Disable custom cursor movement whenever more than one finger is on the pad
+static const bool DISABLE_CURSOR_ON_MULTITOUCH = true;
